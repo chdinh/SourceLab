@@ -1,2 +1,2 @@
 # SourceLab
-Matlab Source Localization Toolbox
+MATLAB OOP Source Localization Toolbox

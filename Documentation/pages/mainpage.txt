@@ -1,0 +1,42 @@
+/*! \mainpage SourceLab Documentation
+ *
+ * \section intro_sec Introduction
+ *
+ * SourceLab is a MATLAB OOP based framework to prototype algorithms in the field of neural source localization fast.<br>
+ * The project is driven by:
+ * - Christoph Dinh 	<christoph.dinh@tu-ilmenau.de>
+ * - Hermann Sonntag 	<hsonntag@cbs.mpg.de>
+ * - Burkhard Maess 	<maess@cbs.mpg.de>
+ * - Daniel Strohmeier 	<daniel.strohmeier@tu-ilmenau.de>
+ * - Martin Weis	<martin.weis@tu-ilmenau.de>
+ * - Alexander Hunold 	<alexander.hunold@tu-ilmenau.de>
+ * - Daniel Guellmar	<daniel.guellmar@med.uni-jena.de>
+ * - Judith Mengelkamp	<judith.mengelkamp@tu-ilmenau.de>
+ * - Peter Hoemmen	<peter.hoemmen@tu-ilmenau.de>
+ * - Steffen Bollmann 	<steffen.bollmann@kispi.uzh.ch>
+ * 
+ * \section guidePortal Documentation Set
+ * \li \ref guidelines
+ * \li \ref doxSetup
+ * \li <a href="annotated.html"><b>Classes</b></a>
+ * \li <a href="files.html"><b>Files</b></a>
+ *
+ * \section examplePortal Examples
+ * \li \ref ex_rapmusic
+ * \li ..
+ *
+ * \section install_sec Installation
+ *
+ * \subsection requ Requirements
+ * \li MATLAB R2011a
+ * \li parallel toolbox (to use GPU functionality)
+ * \li ...
+ *
+ * \section lic LICENSE
+ *
+ * Copyright (C) 2011 Christoph Dinh, Daniel Strohmeier, Alexander Hunold, Daniel Guellmar, Peter Hoemmen and Steffen Bollmann. All rights reserved.
+ *
+ * No part of this program may be photocopied, reproduced, or translated to another program language without the prior written consent of the authors.
+ *
+ *
+ */

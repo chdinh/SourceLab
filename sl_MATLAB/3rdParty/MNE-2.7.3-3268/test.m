@@ -1,0 +1,1 @@
+mne_ex_read_write_raw('F:\Data\MIND\MEG\mind006-MGH\raw\mind006_051209_auditory01_raw.fif','F:\Data\MIND\MEG\mind006-MGH\raw\test.fif');

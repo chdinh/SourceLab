@@ -1,0 +1,1399 @@
+function forwardEEG_r()
+%
+% forwardEEG() is a MATLAB GUI to calculate the electrode signals of 
+% a realistic headmodel for up to five dipoles, whereas 3 dipoles can be
+% selected as moving dipoles (Attention: calculation
+% is currently only working for one dipole!! Has to be extented in 
+% future versions.)
+%
+% The headmodel is derived from real MRI measurements and based on a set of
+% nodes that can be selected as source activation positions. The head model
+% is taken from the SourceLab Toolbox, which provides several calculations
+% of realistic head models. For the calculation of the head model and its 
+% forward solution freesurfer software (ref?) was used.
+%
+% An interactive dipole positioner allows the user to easily place the
+% dipoles within the head model. In case of moving dipoles the user places
+% the start and end position of the dipoles. Furthermore the
+% data can be superpositioned by either white noise or simulated
+% background EEG. 
+% 
+% A 3D view of the resulting source activation map makes it possible to
+% verify the activation distribution within the head model. In case of
+% moving dipoles the activation trace can be visualized (Attention: 
+% visualization might take up lots of computational time, might not be appropriate).
+%
+% For further processing of the data the user can export the data to the
+% workspace or use the integrated EEG decomposition panel, which provides
+% several blind source separation methods. In case of the decomposition
+% panel the user has to previously select a folder (WorkingFolder, line 68)
+% to save the data in.
+%
+%
+%% Inits
+PositionAxes=0;
+currMousePos = 0;
+numberOfDipoles = 1;
+numberOfMovingDipoles = 0;
+dipolePosition = zeros(5,3);
+movingdipolePosition =zeros(5,3);
+dipolePositionMov=[]; % all dipole positions if moving dipoles are selected
+movingsamples=[]; % number of moving dipole positions for each moving dipole
+CrosshairColors = {'g'  [1 0.5882 0] 'm' 'c' [0.5882 0.5882 0.3922]};
+axlimit = 1;
+electrodeSignals=[]; % electrode signals
+signal=[]; % dipole signals
+f1h=0; % handles to submain GUI "EEG Data Browser"
+f_decomp=0; % handles to submain GUI "EEG Decomposition Panel"
+NLG=100; % nerve conduction velocity
+N=500; % length of dipole signal
+t_ForwardSolution=[];
+t_Simulator=[];
+Idcs_mov=[];
+SNRnoise =10;
+
+WorkingFolder='SyntheticEEGData'; % folder to save data, user customizable
+
+% close all
+% clc
+
+%% Error messages
+errInvOutputVarName = 'The output variable name is not valid! Choose a valid one!';
+errStartEndPosMovDipNotDiff = 'The start and end position of a moving dipole has to be different!';
+errNoDipoleSignalSelected= 'Signals for all dipoles have to be selected!';
+
+
+%% create UI elements
+
+% =========================================================================
+% create host figure
+% =========================================================================
+f_main = figure(...
+    'Name', 'Forward EEG Simulator v3.0', ...
+    'MenuBar', 'none', ...
+    'Toolbar', 'none', ...
+    'Position', [100 100 1400 900], ...
+    'Units', 'normalized', ...
+    'NumberTitle', 'off', ...
+    'Pointer', 'arrow', ... 
+    'Resize', 'off', ...
+    'Visible', 'off', ...
+    'WindowButtonMotionFcn', {@mouse_move}, ...
+    'WindowButtonDownFcn', {@button_down}, ...
+    'WindowKeyPressFcn', {@button_down},...
+    'Renderer','OpenGL');
+
+% =========================================================================
+% create viewer panel and elements
+% =========================================================================
+
+% panel -------------------------------------------------------------------
+p_viewer = uipanel(...
+    'Parent', f_main, ...
+    'Title', 'Viewer', ...
+    'Position', [0.01 0.01 0.63 0.98]);
+% -------------------------------------------------------------------------
+
+% dipole positioning panel ------------------------------------------------
+p_sourceloc = uipanel(...
+    'Parent', p_viewer, ...
+    'Title', 'Interactive Dipole Positioner (Use ''1...5'' resp. "6...8" keys to place dipoles resp. moving dipoles 1...3. Use left mouse button to place dipole 1)', ...
+    'Position', [0.02 0.6 0.96 0.38]);
+
+% right view axes
+a_sourceloc(1) = axes(...
+    'Parent', p_sourceloc, ...
+    'NextPlot', 'add', ...
+    'Position', [0.065 0.17 0.26 0.7], ...
+    'XLim', [-axlimit axlimit], ...
+    'XLimMode', 'manual', ...
+    'YLim', [-axlimit axlimit], ...
+    'YLimMode', 'manual', ...
+    'PlotBoxAspectRatio', [1 1 1], ...
+    'PlotBoxAspectRatioMode', 'manual', ...
+    'DrawMode', 'fast');
+title('back view');
+xlabel('x');
+ylabel('z');
+
+% top view axes
+a_sourceloc(2)  = axes(...
+    'Parent', p_sourceloc, ...
+    'NextPlot', 'add', ...
+    'Position', [0.3875 0.17 0.26 0.7], ...
+    'XDir', 'reverse', ...
+    'XLim', [-axlimit axlimit], ...
+    'XLimMode', 'manual', ...
+    'YLim', [-axlimit axlimit], ...
+    'YLimMode', 'manual', ...
+    'PlotBoxAspectRatio', [1 1 1], ...
+    'PlotBoxAspectRatioMode', 'manual', ...
+    'DrawMode', 'fast');
+title('top view');
+xlabel('y');
+ylabel('x');
+
+% front view axes
+a_sourceloc(3)  = axes(...
+    'Parent', p_sourceloc, ...
+    'NextPlot', 'add', ...
+    'Position', [0.715 0.17 0.26 0.7], ...
+    'XLim', [-axlimit axlimit], ...
+    'XLimMode', 'manual', ...
+    'YLim', [-axlimit axlimit], ...
+    'YLimMode', 'manual', ...
+    'PlotBoxAspectRatio', [1 1 1], ...
+    'PlotBoxAspectRatioMode', 'manual', ...
+    'DrawMode', 'fast');
+title('left view');
+xlabel('y');
+ylabel('z');
+
+% static dipole crosshairs (crosshairs that indicate dipole positions)
+CHvisibility = 'on';
+for j=1:5
+    for i=1:3
+        Crosshair(i,j) = plot(...
+            a_sourceloc(i), 0, 0, ...
+            'Marker', '+', ...
+            'LineStyle', 'none', ...
+            'MarkerEdgeColor', CrosshairColors{j}, ...
+            'Visible', CHvisibility, ...
+            'MarkerSize', 9);
+    end
+    if (j == numberOfDipoles)
+        CHvisibility = 'off';
+    end
+end
+
+
+% moving dipole crosshairs (crosshairs that indicate end position of moving
+% dipoles)
+CHMvisibility = 'off';
+for j=1:3
+    for i=1:3
+        movingCrosshair(i,j) = plot(...
+            a_sourceloc(i), 0, 0,...
+            'Marker', '*',...
+            'LineStyle', 'none',...
+            'MarkerEdgeColor', CrosshairColors{j}, ...
+            'Visible', CHMvisibility, ...
+            'MarkerSize', 9);
+    end    
+end
+% -------------------------------------------------------------------------
+
+% 3D potential and electrode panel ----------------------------------------
+p_3Dview = uipanel(...
+    'Parent', p_viewer, ...
+    'Title', '3D Activation Map and Electrode View', ...
+    'Position', [0.02 0.02 0.58 0.56]);
+
+% 3D potential and electrode plot axes
+a_3Dview = axes(...
+    'Parent', p_3Dview, ...
+    'OuterPosition', [0.0 0.0 1 1], ...
+    'XLim', [-axlimit axlimit], ...
+    'XLimMode', 'manual', ...
+    'YLim', [-axlimit axlimit], ...
+    'YLimMode', 'manual', ...
+    'ZLim', [-axlimit axlimit], ...
+    'ZLimMode', 'manual', ...
+    'PlotBoxAspectRatio', [1 1 1], ...
+    'PlotBoxAspectRatioMode', 'manual', ...
+    'DrawMode', 'fast', ...
+    'NextPlot', 'add');
+
+% 3D electrode plot
+pl_elecSetup = plot3(...
+    a_3Dview, ...
+    0, ...
+    0, ...
+    0, ...
+    'LineStyle', 'none', ...
+    'Marker', 'o', ...
+    'MarkerSize', 4, ...
+    'MarkerFaceColor', 'y', ...
+    'MarkerEdgeColor', 'k', ...
+    'Visible', 'off');
+
+% 3D plot settings
+set(a_3Dview, 'View', [37.5 30]);
+xlabel(a_3Dview, 'x')
+ylabel(a_3Dview, 'y')
+zlabel(a_3Dview, 'z')
+axis(a_3Dview, 'equal')
+rotate3d off
+rotate_handle = rotate3d(a_3Dview);
+% -------------------------------------------------------------------------
+
+% View Control subpanel ---------------------------------------------------
+p_viewControl = uipanel(...
+    'Parent', p_viewer, ...
+    'Title', 'View Control', ...
+    'Position', [0.62 0.28 0.36 0.3]);
+
+% View Control buttons
+pb_backView = uicontrol(...
+    'Parent', p_viewControl, ...
+    'Style', 'pushbutton', ...
+    'String', 'Back View', ...
+    'Units', 'normalized', ...
+    'Position', [0.05 0.44 0.266 0.18], ...
+    'Callback', {@change3DView});
+
+pb_frontView = uicontrol(...
+    'Parent', p_viewControl, ...
+    'Style', 'pushbutton', ...
+    'String', 'Front View', ...
+    'Units', 'normalized', ...
+    'Position', [0.05 0.67 0.266 0.18], ...
+    'Callback', {@change3DView});
+
+pb_topView = uicontrol(...
+    'Parent', p_viewControl, ...
+    'Style', 'pushbutton', ...
+    'String', 'Top View', ...
+    'Units', 'normalized', ...
+    'Position', [0.366 0.44 0.266 0.18], ...
+    'Callback', {@change3DView});
+
+pb_bottomView = uicontrol(...
+    'Parent', p_viewControl, ...
+    'Style', 'pushbutton', ...
+    'String', 'Bottom View', ...
+    'Units', 'normalized', ...
+    'Position', [0.366 0.67 0.266 0.18], ...
+    'Callback', {@change3DView});
+
+pb_leftView = uicontrol(...
+    'Parent', p_viewControl, ...
+    'Style', 'pushbutton', ...
+    'String', 'Left View', ...
+    'Units', 'normalized', ...
+    'Position', [0.683 0.44 0.266 0.18], ...
+    'Callback', {@change3DView});
+
+pb_rightView = uicontrol(...
+    'Parent', p_viewControl, ...
+    'Style', 'pushbutton', ...
+    'String', 'Right View', ...
+    'Units', 'normalized', ...
+    'Position', [0.683 0.67 0.266 0.18], ...
+    'Callback', {@change3DView});
+
+pb_defaultView = uicontrol(...
+    'Parent', p_viewControl, ...
+    'Style', 'pushbutton', ...
+    'String', 'Default View', ...
+    'Units', 'normalized', ...
+    'Position', [0.05 0.19 0.266 0.18], ...
+    'Callback', {@change3DView});
+
+pb_potentialCourse = uicontrol(...
+    'Parent', p_viewControl, ...
+    'Style', 'pushbutton', ...
+    'String', 'Activation course', ...
+    'Units', 'normalized', ...
+    'Enable', 'Off',...
+    'Position', [0.366 0.19 0.582 0.18], ...
+    'Callback', {@showActivationCourse});
+
+% Electrode setup panel -------------------------------------------------------
+p_ElectrodeSetup = uipanel(...
+    'Parent', p_viewer, ...
+    'Title', 'Electrode Setup', ...
+    'Position', [0.62 0.02 0.36 0.24]);
+
+% radio button group "Show electrode setup" 
+rbg_showElectrodeSetup = uibuttongroup(...
+    'Parent',p_ElectrodeSetup,...
+    'Units', 'normalized',...
+    'Position', [0.275 0.65 0.6 0.25],...
+    'Title', 'Show Electrode Setup',...
+    'BorderType', 'none');
+    
+uicontrol('Style', 'Radio',...
+    'String', 'No',...
+    'Units', 'normalized',...
+    'Position', [0.12 0.1 0.3 0.6],...
+    'Parent', rbg_showElectrodeSetup);
+
+uicontrol('Style', 'Radio',...
+    'String', 'Yes',...
+    'Units', 'normalized',...
+    'Position', [0.42 0.1 0.3 0.6],...
+    'Parent', rbg_showElectrodeSetup);
+ 
+set(rbg_showElectrodeSetup,'SelectionChangeFcn',{@showElectrodeSetup});
+
+% =========================================================================
+% create source settings panel and elements
+% =========================================================================
+
+% panel -------------------------------------------------------------------
+p_sourcesettings = uipanel(...
+    'Parent', f_main, ...
+    'Title', 'Source Settings', ...
+    'Position', [0.65 0.27 0.34 0.72]);
+% -------------------------------------------------------------------------
+
+% number of dipoles dropdown menu
+t_numberOfDipoles = uicontrol(...
+    'Parent', p_sourcesettings, ...
+    'Style', 'text', ...
+    'Units', 'normalized', ...
+    'HorizontalAlignment', 'left', ...
+    'String', 'Number of dipoles:', ...
+    'Position', [0.03 0.9 0.5 0.05]);
+
+dd_numberOfDipoles = uicontrol(...
+    'Parent', p_sourcesettings, ...
+    'Style', 'popup',...
+    'Units', 'normalized', ...
+    'String', '1|2|3|4|5',...
+    'Value', numberOfDipoles, ...
+    'Position', [0.4 0.91 0.15 0.05], ...
+    'BackgroundColor', [1 1 1], ...
+    'Callback', @setNumberOfDipoles);
+
+t_numberOfMovingDipoles = uicontrol(...
+    'Parent', p_sourcesettings, ...
+    'Style', 'text', ...
+    'Units', 'normalized', ...
+    'HorizontalAlignment', 'left', ...
+    'String', 'Number of moving dipoles:', ...
+    'Position', [0.03 0.84 0.5 0.05]);
+
+dd_numberOfMovingDipoles = uicontrol(...
+    'Parent', p_sourcesettings, ...
+    'Style', 'popup',...
+    'Units', 'normalized', ...
+    'String', '0|1|2|3',...
+    'Value', numberOfMovingDipoles+1,...
+    'Position', [0.4 0.85 0.15 0.05], ...
+    'BackgroundColor', [1 1 1], ...
+    'Callback', @setNumberOfMovingDipoles);
+
+% basic position and size data for static dipole property texts
+lefttextoffset = 0.03;
+lowertextoffset = 0.735;
+texthight = 0.04;
+textwidth = 0.5;
+textdist = 0.06;
+
+% basic position and size data for dipole property edits
+lefteditoffset = 0.255;
+lowereditoffset = 0.75;
+edithight = 0.04;
+editwidth = 0.105;
+editdisth = 0.12;
+editdistv = 0.06;
+lefteditmovingoffset = 0.62; % basic position data for moving dipole property edits
+textdistsignal = 0.025; % basis text distinction between pop up menus for signal selection
+lowertextsignaloffset = 0.44; % basic position for signal property edits
+signaleditdist = 0.025; % basis distinction between two signal pop up menus
+
+% column header static texts
+t_dipolex = uicontrol(...
+    'Parent', p_sourcesettings, ...
+    'Style', 'text', ...
+    'Units', 'normalized', ...
+    'HorizontalAlignment', 'center', ...
+    'String', 'x', ...
+    'Position', [lefteditoffset-0.01 (lowertextoffset + 0.06) editwidth texthight]);
+
+t_dipoley = uicontrol(...
+    'Parent', p_sourcesettings, ...
+    'Style', 'text', ...
+    'Units', 'normalized', ...
+    'HorizontalAlignment', 'center', ...
+    'String', 'y', ...
+    'Position', [(lefteditoffset-0.01 + editdisth) (lowertextoffset + 0.06) editwidth texthight]);
+
+t_dipolez = uicontrol(...
+    'Parent', p_sourcesettings, ...
+    'Style', 'text', ...
+    'Units', 'normalized', ...
+    'HorizontalAlignment', 'center', ...
+    'String', 'z', ...
+    'Position', [(lefteditoffset-0.01 + 2*editdisth) (lowertextoffset + 0.06) editwidth texthight]);
+
+t_movingdipolex = uibutton(...
+    'Parent', p_sourcesettings, ...
+    'Style', 'text', ...
+    'Units', 'normalized', ...
+    'HorizontalAlignment', 'center', ...
+    'String', 'x_{end}', ...
+    'interpreter', 'tex',...
+    'Position', [lefteditmovingoffset-0.01 (lowertextoffset + 0.06) editwidth texthight]);
+
+t_movingdipoley = uibutton(...
+    'Parent', p_sourcesettings, ...
+    'Style', 'text', ...
+    'Units', 'normalized', ...
+    'HorizontalAlignment', 'center', ...
+    'String', 'y_{end}', ...
+    'interpreter', 'tex',...
+    'Position', [(lefteditmovingoffset-0.01 + editdisth) (lowertextoffset + 0.06) editwidth texthight]);
+
+t_dipolemovingz = uibutton(...
+    'Parent', p_sourcesettings, ...
+    'Style', 'text', ...
+    'Units', 'normalized', ...
+    'HorizontalAlignment', 'center', ...
+    'String', 'z_{end}', ...
+    'interpreter','tex',...
+    'Position', [(lefteditmovingoffset-0.01 + 2*editdisth) (lowertextoffset + 0.06) editwidth texthight]);
+
+% create dipole property static texts and edits for static and moving 
+% dipoles and pop up menues for selecting the signals in a loop
+for i = 1:5
+    % dipole i position row header
+    t_dipolePosition(i) = uicontrol(...
+    'Parent', p_sourcesettings, ...
+    'Style', 'text', ...
+    'Units', 'normalized', ...
+    'HorizontalAlignment', 'left', ...
+    'String', sprintf('Dipole %i position:', i), ...
+    'Position', [lefttextoffset (lowertextoffset - (i-1)*textdist) textwidth texthight]);
+    
+    % dipole i moment row header
+    t_dipoleSignal(i) = uicontrol(...
+    'Parent', p_sourcesettings, ...
+    'Style', 'text', ...
+    'Units', 'normalized', ...
+    'HorizontalAlignment', 'left', ...
+    'String', sprintf('Dipole %i signal:', i), ...
+    'Position', [lefttextoffset (lowertextsignaloffset - (2*(i-1))*textdistsignal) textwidth texthight]);
+    
+    % create dipole i position edit fields in a loop (two for loops for
+    % position and moment are used because of the tabulator sequence)
+    for j = 1:3
+        e_dipolePosition(i,j) = uicontrol(...
+        'Parent', p_sourcesettings, ...
+        'Style', 'edit', ...
+        'Units', 'normalized', ...
+        'HorizontalAlignment', 'left', ...
+        'String', '0', ...
+        'Enable', 'on', ...
+        'Position', [(lefteditoffset + (j-1)*editdisth) (lowereditoffset - (i-1)*editdistv) editwidth edithight], ...
+        'BackgroundColor', CrosshairColors{i}, ...
+        'UserData', [i j], ...
+        'Callback', {@refreshCrosshairs});
+    end
+       
+    if i<=3
+    % create moving dipole i=1:3 position edit fields in a loop (two for loops for
+    % position and moment are used because of the tabulator sequence)
+        for j = 1:3
+            e_movingdipolePosition(i,j) = uicontrol(...
+            'Parent', p_sourcesettings, ...
+            'Style', 'edit', ...
+            'Units', 'normalized', ...
+            'HorizontalAlignment', 'left', ...
+            'String', '0', ...
+            'Enable', 'on', ...
+            'Position', [(lefteditmovingoffset + (j-1)*editdisth) (lowereditoffset - (i-1)*editdistv) editwidth edithight], ...
+            'BackgroundColor', CrosshairColors{i}, ...
+            'UserData', [i j], ...
+            'Callback', {@refreshMovingCrosshairs});
+        end
+    end
+    % create signal edit fields in a loop
+    dd_signal(i) = uicontrol(...
+    'Parent', p_sourcesettings, ...
+    'Style', 'popup',...
+    'Units', 'normalized', ...
+    'String', 'none|alpha-band sinus wave|beta-band sinus wave|ts-alpha-band sinus wave|ts-beta-band sinus wave|gamma-band sinus wave|evoked potential|sleep spindles|wave|spikes|spike wave complex|eye blink|polyspikes|rectangle|paraboloid|triangle|sinus period|gauss|time-shifted spike',...
+    'Enable', 'on',...
+    'Position', [(lefteditoffset) (lowertextsignaloffset - ((2*(i-1)+0.01)*signaleditdist)+0.01) 0.28 (edithight)], ...
+    'BackgroundColor', [1 1 1], ...
+    'Callback', @setSignal);
+end
+
+set(e_dipolePosition, 'Enable', 'off'); % disable all dipole position edits
+set(e_dipolePosition(:,1:numberOfDipoles), 'Enable', 'off'); % enable dipole position edits for dipoles 1:numberOfDipoles
+set(e_movingdipolePosition, 'Enable', 'off'); % disable all moving dipole position edits
+
+% Calculate Electrode Signals button
+pb_calculateElectrodeSignals = uicontrol(...
+    'Parent', p_sourcesettings, ...
+    'Style', 'pushbutton', ...
+    'String', 'Calculate Electrode Signals', ...
+    'Enable', 'on',...
+    'Units', 'normalized', ...
+    'Position', [0.57 0.14 0.39 0.075], ...
+    'Callback', {@calculateElectrodeSignals});
+
+% Show Electrode Signals button
+pb_showElectrodeSignals = uicontrol(...
+    'Parent', p_sourcesettings, ...
+    'Style', 'pushbutton', ...
+    'String', 'Show Electrode Signals', ...
+    'Enable', 'off',...
+    'Units', 'normalized', ...
+    'Position', [0.57 0.04 0.39 0.075], ...
+    'Callback', {@showElectrodeSignals});
+
+% Additive noise radio buttons
+rbg_additiveNoise = uibuttongroup(...
+    'Parent',p_sourcesettings,...
+    'Units', 'normalized',...
+    'Position', [0.035 0.03 0.5 0.2],...
+    'Title', 'Additive Noise',...
+    'BorderType', 'etchedin');
+
+rb_BackgroundEEG = uicontrol('Style', 'Radio',...
+    'String', 'Synthetic Background EEG',...
+    'Units', 'normalized',...
+    'Position', [0.1 0.3 0.9 0.4],...
+    'Parent', rbg_additiveNoise,...
+    'Value',0);
+
+rb_whiteNoise = uicontrol('Style', 'Radio',...
+    'String', 'White Noise',...
+    'Units', 'normalized',...
+    'Position', [0.1 0.6 0.9 0.4],...
+    'Parent', rbg_additiveNoise,...
+    'Value',1);
+
+set(rbg_additiveNoise,'SelectionChangeFcn',{@additiveNoise});
+
+t_SNRnoise = uicontrol(...
+    'Parent', rbg_additiveNoise, ...
+    'Style', 'text', ...
+    'Units', 'normalized', ...
+    'HorizontalAlignment', 'left', ...
+    'String', 'SNR:', ...
+    'Position', [0.1 0.09 0.5 0.2]);
+
+e_SNRnoise = uicontrol(...
+    'Parent', rbg_additiveNoise, ...
+    'Style', 'edit', ...
+    'Units', 'normalized', ...
+    'HorizontalAlignment', 'right', ...
+    'String', SNRnoise, ...
+    'Position', [0.3 0.1 0.35 0.2],...
+    'Callback', {@addSNRnoise});
+
+% warning panel and texts
+p_vcNotUp2Date = uipanel(...
+    'Parent', p_sourcesettings, ...
+    'BorderType', 'etchedin',...
+    'Position', [0.57 0.3 0.39 0.14]);
+
+t_pmNotUp2Date = uicontrol(...
+    'Parent', p_vcNotUp2Date, ...
+    'Style', 'text', ...
+    'Units', 'normalized', ...
+    'HorizontalAlignment', 'left', ...
+    'Visible', 'on', ...
+    'String', {'Electrode signals are not up to date!'}, ...
+    'Position', [0.05 0.05 0.9 0.8], ...
+    'ForegroundColor', 'r');
+
+% =========================================================================
+% create decomposition panel and elements
+% =========================================================================
+
+% panel -------------------------------------------------------------------
+p_decomposition = uipanel(...
+    'Parent', f_main, ...
+    'Title', 'Decomposition', ...
+    'Position', [0.65 0.01 0.165 0.25]);
+
+p_EEGDecompDescription = uipanel(...
+    'Parent', p_decomposition,...
+    'BorderType', 'etchedin',...
+    'Position',[0.07 0.5 0.86 0.4]);
+
+pb_showEEGDecompositionPanel=uibutton(...
+    'Parent', p_EEGDecompDescription, ...
+    'Style', 'text', ...
+    'String', 'Link to various \newline decomposition methods', ...
+    'HorizontalAlignment','center',...
+    'Interpreter', 'tex',...
+    'Units', 'normalized', ...
+    'Enable', 'On',...
+    'Position', [0.05 0.05 0.9 0.9]);
+     
+pb_showEEGDecompositionPanel=uicontrol(...
+    'Parent', p_decomposition, ...
+    'Style', 'pushbutton', ...
+    'String', 'EEG Decomposition Panel', ...
+    'HorizontalAlignment','center',...
+    'Units', 'normalized', ...
+    'Enable', 'Off',...
+    'Position', [0.07 0.1 0.86 0.3], ...
+    'Callback', {@showEEGDecompositionPanel});
+    
+% =========================================================================
+% create export data panel and elements
+% =========================================================================
+
+p_exportData = uipanel(...
+    'Parent', f_main, ...
+    'Title', 'Export Data', ...
+    'Position', [0.825 0.01 0.165 0.25]);
+
+% Output variable name edit field
+t_outputVarName = uicontrol(...
+    'Parent', p_exportData, ...
+    'Style', 'text', ...
+    'Units', 'normalized', ...
+    'HorizontalAlignment', 'left', ...
+    'String', 'Output Variable Name:', ...
+    'Position', [0.07 0.72 0.86 0.15]);
+
+e_outputVarName = uicontrol(...
+    'Parent', p_exportData, ...
+    'Style', 'edit', ...
+    'Units', 'normalized', ...
+    'HorizontalAlignment', 'left', ...
+    'String', 'output', ...
+    'Enable', 'off', ...
+    'Position', [0.07 0.51 0.86 0.2], ...
+    'BackgroundColor', [1 1 1]);
+
+% Export Electrode Data to Workspace button
+pb_exportElecDataToWorkspace = uicontrol(...
+    'Parent', p_exportData, ...
+    'Style', 'pushbutton', ...
+    'String', 'Export Data to Workspace', ...
+    'Units', 'normalized', ...
+    'Position', [0.07 0.1 0.86 0.3], ...
+    'Enable', 'off', ...
+    'Callback', {@exportElecDataToWorkspace});
+
+% -------------------------------------------------------------------------
+
+% call some functions for initialization
+setNumberOfDipoles(); % initialize numberOfDipoles and set enable status of dipole property edits
+createVolumeConductor(); % create a volume conductor model with default radii and conductivities
+set(f_main, 'Visible', 'on'); % finally set the visibility property of the main window to 'on'
+loadElectrodeSetup();
+
+
+%% Main Window callback functions
+
+function button_down(hObject, eventdata)
+% callback function button_down(hObject, eventdata) is called on a left 
+% mouse button down event or on a key press event while mouse cursor is 
+% within the main window. 
+% If the cursor is within one of the interactive dipole positioner axes, 
+% dipole position crosshairs are being adapted in all positioner axes as 
+% well as the dipole position edit fields and the global dipole position 
+% matrix 'dipolePosition'.
+
+    % check whether the cursor is within any positioner axes. 
+    % 'currMousePos' is empty otherwise (see mouse_move function below)
+    if isempty(currMousePos)
+        return;
+    end
+    
+    % check whether a key press event (-> ~isempty(eventdata)=0) or a left
+    % mouse button down event (-> ~isempty(eventdata)=1) called the 
+    % callback and set dipnum to the number of dipole to adapt.
+    if ~isempty(eventdata)
+    % if a key press event was calling... 
+        dipnum = str2num(eventdata.Character); % ...set 'dipnum'...
+        if (isempty(dipnum))
+        % ...and firstly check if dipnum is empty (which might is
+        % possible when e.g. 'Alt' key has been pressed).
+            return;
+        end
+        if (~isnumeric(dipnum) || ((dipnum > numberOfDipoles) && (dipnum < 6))...
+            || ((dipnum > (numberOfMovingDipoles +3)) && (dipnum > 8)) || dipnum < 1)
+        % Further check if a valid key ('1'...'numberOfDipoles') has been
+        % pressed.
+            return;
+        end
+    else
+    % if a left mouse button down event called the callback, set 'dipnum'
+    % to 1.
+        dipnum = 1;        
+    end
+    
+    if (PositionAxes == a_sourceloc(1))
+    % if current axes is the 'Right View' axes, adapt x- and z-component of
+    % the position data of the appropriate dipole...
+    if dipnum < 6
+        dipolePosition(dipnum,1) = currMousePos(1);
+        dipolePosition(dipnum,3) = currMousePos(2); % ... in matrix 'dipolePosition'...
+        set(e_dipolePosition(dipnum,1), 'String', num2str(round2(currMousePos(1),1e-4)));
+        set(e_dipolePosition(dipnum,3), 'String', num2str(round2(currMousePos(2),1e-4))); % ... and in the accordant edit field...
+        refreshCrosshairs(e_dipolePosition(dipnum,1)); % ... and finally refresh the dipole position crosshairs.
+    else
+        movingdipolePosition(dipnum-5,1) = currMousePos(1);
+        movingdipolePosition(dipnum-5,3) = currMousePos(2); % ... in matrix 'dipolePosition'...
+        set(e_movingdipolePosition(dipnum-5,1), 'String', num2str(round2(currMousePos(1),1e-4)));
+        set(e_movingdipolePosition(dipnum-5,3), 'String', num2str(round2(currMousePos(2),1e-4))); % ... and in the accordant edit field...
+        refreshMovingCrosshairs(e_movingdipolePosition(dipnum-5,1)); % ... and finally refresh the dipole position crosshairs.  
+    end
+    elseif (PositionAxes == a_sourceloc(2))
+    % the same as above but for the 'Top View' axes and for the the x- and
+    % y-component.
+    if dipnum < 6
+        dipolePosition(dipnum,2) = currMousePos(1);
+        dipolePosition(dipnum,1) = currMousePos(2);
+        set(e_dipolePosition(dipnum,2), 'String', num2str(round2(currMousePos(1),1e-4)));
+        set(e_dipolePosition(dipnum,1), 'String', num2str(round2(currMousePos(2),1e-4)));
+        refreshCrosshairs(e_dipolePosition(dipnum,1));
+    else
+        movingdipolePosition(dipnum-5,2) = currMousePos(1);
+        movingdipolePosition(dipnum-5,1) = currMousePos(2); % ... in matrix 'dipolePosition'...
+        set(e_movingdipolePosition(dipnum-5,2), 'String', num2str(round2(currMousePos(1),1e-4)));
+        set(e_movingdipolePosition(dipnum-5,1), 'String', num2str(round2(currMousePos(2),1e-4))); % ... and in the accordant edit field...
+        refreshMovingCrosshairs(e_movingdipolePosition(dipnum-5,1)); % ... and finally refresh the dipole position crosshairs.  
+    end
+    elseif (PositionAxes == a_sourceloc(3))
+    % the same as above but for the 'Front View' axes and for the the y- 
+    % and z-component.
+    if dipnum < 6
+        dipolePosition(dipnum,2) = currMousePos(1);
+        dipolePosition(dipnum,3) = currMousePos(2);
+        set(e_dipolePosition(dipnum,2), 'String', num2str(round2(currMousePos(1),1e-4)));
+        set(e_dipolePosition(dipnum,3), 'String', num2str(round2(currMousePos(2),1e-4)));
+        refreshCrosshairs(e_dipolePosition(dipnum,1));
+    else
+       movingdipolePosition(dipnum-5,2) = currMousePos(1);
+        movingdipolePosition(dipnum-5,3) = currMousePos(2); % ... in matrix 'dipolePosition'...
+        set(e_movingdipolePosition(dipnum-5,2), 'String', num2str(round2(currMousePos(1),1e-4)));
+        set(e_movingdipolePosition(dipnum-5,3), 'String', num2str(round2(currMousePos(2),1e-4))); % ... and in the accordant edit field...
+        refreshMovingCrosshairs(e_movingdipolePosition(dipnum-5,1)); % ... and finally refresh the dipole position crosshairs.   
+    end
+    end   
+end
+
+function mouse_move(hObject, eventdata)
+% callback function mouse_move(hObject, eventdata) is called on a mouse 
+% move event within the main window.
+% Shows a floating crosshair if the cursor is within positioner axes,
+% enables the rotate3D function if the cursor is within the 3D view axes.
+% !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+% !! Might be a 'dirty' possibility to do this. I guess there is better, !!
+% !! more performant way to do this, but it works for the moment!        !! 
+% !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    % First of all get the cursor position with respect to the particular
+    % axes.
+    viewer3DMousePos = get(a_3Dview, 'CurrentPoint');
+    viewer3DMousePos = viewer3DMousePos(1,1:3);
+    SaggitalMousePos = get(a_sourceloc(1),'CurrentPoint');
+    SaggitalMousePos = SaggitalMousePos(1,1:2);
+    CoronalMousePos = get(a_sourceloc(2),'CurrentPoint');
+    CoronalMousePos = CoronalMousePos(1,1:2);
+    FrontalMousePos = get(a_sourceloc(3),'CurrentPoint');
+    FrontalMousePos = FrontalMousePos(1,1:2);
+    
+    if (norm(SaggitalMousePos) <= max(get(a_sourceloc(1), 'XLim'))/1.2)
+        PositionAxes = a_sourceloc(1);
+        currMousePos = SaggitalMousePos;
+    elseif (norm(CoronalMousePos) <= max(get(a_sourceloc(2), 'XLim'))/1.2)
+        PositionAxes = a_sourceloc(2);
+        currMousePos = CoronalMousePos;
+    elseif (norm(FrontalMousePos) <= max(get(a_sourceloc(3), 'XLim'))/1.2)
+        PositionAxes = a_sourceloc(3);
+        currMousePos = FrontalMousePos;
+    else
+        PositionAxes = [];
+        currMousePos = [];
+    end
+
+    if ~isempty(PositionAxes)
+       set(f_main, 'Pointer', 'arrow')
+    else
+        set(f_main, 'Pointer', 'arrow')
+        % check whether the cursor is within the 3D view axes.
+        if (... 
+                viewer3DMousePos(1) <= max(get(a_3Dview, 'XLim')) && ...
+                viewer3DMousePos(1) >= min(get(a_3Dview, 'XLim')) && ...
+                viewer3DMousePos(2) <= max(get(a_3Dview, 'YLim')) && ...
+                viewer3DMousePos(2) >= min(get(a_3Dview, 'YLim')) && ...
+                viewer3DMousePos(3) <= max(get(a_3Dview, 'ZLim')) && ...
+                viewer3DMousePos(3) >= min(get(a_3Dview, 'ZLim')))
+            if strcmp(get(rotate_handle, 'Enable'), 'off')
+            % If so and rotate3D is 'off'...
+                set(rotate_handle, 'Enable', 'on'); % ...turn it 'on'
+            end
+        else
+        % otherwise...
+            if (strcmp(get(rotate_handle, 'Enable'), 'on'))
+            % ...if rotate3D is enabeld 
+                set(rotate_handle, 'Enable', 'off'); % ...turn it 'off'
+            end
+        end
+    end  
+end
+
+function createVolumeConductor(hObject, eventdata)
+% callback function that is called during initializing the GUI, loading of
+% the headmodel   
+       
+    % 'park' crosshair handles in the 3Dview axes to prevent them from 
+    % being deleted when clearing sourceloc axes    
+    %set(FloatingCrosshair, 'Parent', a_3Dview);
+    set(Crosshair, 'Parent', a_3Dview);
+    set(movingCrosshair, 'Parent', a_3Dview);
+    
+    % delete sourceloc axes
+    for i=1:3
+        cla(a_sourceloc(i));
+    end
+        
+    % put crosshair handles back to the sourceloc axes (seems to be not
+    % possible to do this without a loop like above)
+    for i=1:3
+        set(Crosshair(i,:), 'Parent', a_sourceloc(i));
+        set(movingCrosshair(i,:), 'Parent', a_sourceloc(i));
+    end
+   
+    refreshAxesLimits();
+    
+    % load head model
+    t_ForwardSolution = sl_CForwardSolution('Toolbox_SourceLab/sl_MATLAB/Data/EEG/Sample/sample_audvis-ave-oct-6-fwd.fif');  
+    t_ForwardSolution.plot_DSPos('dim',1,'axesHandle',a_sourceloc(1));
+    t_ForwardSolution.plot_DSPos('dim',2,'axesHandle',a_sourceloc(2));
+    t_ForwardSolution.plot_DSPos('dim',3,'axesHandle',a_sourceloc(3));
+           
+end
+
+
+function setSignal(hObject, eventdata)
+% callback function that is called on choosing a signal from at least one
+% pop up menu 'Dipole i signal' 
+
+    for i=1:get(dd_numberOfDipoles, 'Value');
+            signalSetup(i,1)=get(dd_signal(i), 'Value');
+    end
+end
+
+
+function calculateElectrodeSignals(hObject, eventdata)
+% callback function that is called on button "Calculate Electrode Signals"
+% click
+% Calculates the electrode signals depending on the signals and the choosen
+% electrode setup
+
+    signal=[];
+    numberOfDipoles=get(dd_numberOfDipoles, 'Value'); % get the current number of dipoles
+    numberOfMovingDipoles=get(dd_numberOfMovingDipoles,'Value')-1;
+
+    for i=1:numberOfDipoles
+        signalSetup=get(dd_signal(i), 'Value');
+        % show warning if not for every dipole a signal is selected
+        if signalSetup == 1
+            errordlg(errNoDipoleSignalSelected);
+            return
+        end    
+        [signal(i,:),fs,N]=generateSignals(signalSetup); % generating the signals for each dipole
+    end
+
+     if numberOfMovingDipoles ~= 0
+        if checkStartEndPos()==0; % if the start and end positions of the moving dipoles are not different...
+        errordlg(errStartEndPosMovDipNotDiff); % ... show an error message...
+        return; % ...and return
+        end
+
+        dipolePositionMov=dipolePosition(1:numberOfDipoles,:);
+        dipolePositionMovPol=[];
+
+        numberOfDipolesMov=numberOfDipoles;
+        movingsamples=zeros(1,numberOfMovingDipoles);
+
+        % calculate the moving dipole positions
+        for i=1:numberOfMovingDipoles
+            movingsamples(1,i)=floor((max(abs(dipolePosition(i,:)-movingdipolePosition(i,:))))./NLG.*fs*7.5);
+             [a_s,e_s,r_s]=cart2sph(dipolePosition(i,1),dipolePosition(i,2),dipolePosition(i,3));
+            [a_e,e_e,r_e]=cart2sph(movingdipolePosition(i,1),movingdipolePosition(i,2),movingdipolePosition(i,3));
+            dipolePolDis=[a_e,e_e,r_e]-[a_s,e_s,r_s];
+            dipolePositionMovPol=vertcat(dipolePositionMovPol,(repmat([a_s,e_s,r_s]',1,movingsamples(1,i))+(dipolePolDis'*linspace(0,1,movingsamples(1,i))))');
+            [cart1,cart2,cart3]=sph2cart(dipolePositionMovPol(:,1),dipolePositionMovPol(:,2),dipolePositionMovPol(:,3));
+            dipolePositionMov=vertcat(dipolePositionMov,[cart1,cart2,cart3]);
+
+        % expand numberOfDipolesMov
+         numberOfDipolesMov=numberOfDipolesMov+movingsamples(1,i)-1;
+         dipolePositionMovPol=[];
+         %dipoleMomentMovPol=[];
+        end % i=1:numberOfMovingDipoles
+        dipolePositionMov(1:numberOfMovingDipoles,:)=[];
+        dipolePositionMov=circshift(dipolePositionMov,-(numberOfDipoles-numberOfMovingDipoles));
+
+        % use realistic forward solution
+
+        t_ForwardSolution.selectChannels([306:364]);
+        % [radialList, degrees] = t_ForwardSolution.getRadialSources(20);
+        % t_ForwardSolution.selectSources(radialList);
+        fs=1000;
+
+        %Idcs_mov=t_ForwardSolution.getPathIdcs2([dipolePosition(1,:); movingdipolePosition(1,:)]);
+        Idcs_mov=t_ForwardSolution.getPathIdcs(dipolePositionMov);
+
+        electrodeSignals=zeros(size(t_ForwardSolution.SelectedChannels,2),size(signal,2));
+        for i=1:size(Idcs_mov,1) % for time period of movement
+            t_Simulator = sl_CSimulator(t_ForwardSolution, 1000);
+
+            %t_Simulator.SourceActivation.resetActivatedSourceSelection;
+            t_Simulator.SourceActivation.addActivation(Idcs_mov{i,1}, signal(1,i));%, [1 0 0; 0 1 0]);
+            if get(rb_whiteNoise, 'Value') == 1
+               noise_mode=1;
+            else 
+                noise_mode=2;
+            end  
+            t_Simulator.simulate('mode',noise_mode,'snr',SNRnoise);
+            electrodeSignals(:,i)=t_Simulator.data;
+        end
+
+        % electrode signals after dipole movement has finished
+        t_Simulator = sl_CSimulator(t_ForwardSolution, 1000);
+        t_Simulator.SourceActivation.addActivation(Idcs_mov{end,1}, signal(1,size(Idcs_mov,1)+1:end));%, [1 0 0; 0 1 0]);
+        t_Simulator.simulate('mode',noise_mode,'snr',SNRnoise);
+        electrodeSignals(:,size(Idcs_mov,1)+1:end)=t_Simulator.data;
+
+        % plot starting position
+        if ~isempty(findobj(a_3Dview,'Type','line','Color','r'))
+            delete(findobj(a_3Dview,'Type','line','Color','r'));
+        else
+            t_ForwardSolution.plot_3D_SourceSpace('axesHandle',a_3Dview);
+        end    
+        t_ForwardSolution.plot_DSPos('dim',4,'axesHandle',a_3Dview,'ac_Srcs',Idcs_mov{1,1}); 
+        set(a_3Dview, 'View', [37.5 30]);
+
+    else % for if numberOfMovingDipoles ~=0, only static dipoles are selected
+
+        % calculate electrode signals for 1 fixed dipole on the realistic head
+        % model
+        fs=1000;
+        t_ForwardSolution = sl_CForwardSolution('Toolbox_SourceLab/sl_Matlab/Data/EEG/Sample/sample_audvis-ave-oct-6-fwd.fif');
+
+        t_ForwardSolution.selectChannels([307:366]);
+    %     [radialList, degrees] = t_ForwardSolution.getRadialSources(20);
+    %     t_ForwardSolution.selectSources(radialList);
+        idx_pos=t_ForwardSolution.getPosIdx(dipolePosition(1:numberOfDipoles,:));
+        t_Simulator = sl_CSimulator(t_ForwardSolution, fs);
+        for i=1:length(idx_pos)
+            t_Simulator.SourceActivation.addActivation(idx_pos(1,i), signal);%, [1 0 0; 0 1 0]);
+        end
+
+        if get(rb_whiteNoise, 'Value')
+           noise_mode=1;
+        else 
+            noise_mode=2;
+        end
+
+        t_Simulator.simulate('mode',noise_mode,'snr',SNRnoise);
+        electrodeSignals=t_Simulator.data;
+
+            if ~isempty(findobj(a_3Dview,'Type','line','Color','r'))
+                delete(findobj(a_3Dview,'Type','line','Color','r'));
+            else
+                t_ForwardSolution.plot_3D_SourceSpace('axesHandle',a_3Dview);
+            end    
+            t_ForwardSolution.plot_DSPos('dim',4,'axesHandle',a_3Dview,'ac_Srcs',idx_pos);
+            set(a_3Dview, 'View', [37.5 30]);
+      end % if numberOfMovingDipoles ~=0
+
+        if numberOfMovingDipoles > 0
+            set(pb_potentialCourse, 'Enable', 'on'); % enable the show potential course button
+        end
+        showWarningExport('off');
+end
+
+function showElectrodeSignals(hObject,eventdata,handles)
+% callback function that is called on button 'Show Electrode Signals' click
+% opens a figure to show the electrode signals
+% marker data has to be selected
+
+    elecSetupLabels=cellstr(int2str([1:t_ForwardSolution.numChannels]'));
+    if ishandle(f1h)&& (f1h ~=0) 
+        close(f1h)
+    end
+    f1h=show_electrode_signals(electrodeSignals',fliplr(elecSetupLabels'));
+    guidata(hObject,f1h);
+end
+
+function setNumberOfDipoles(hObject, eventdata)
+% callback function that is called on popup selection to enable/disable 
+% dipole edit fields
+
+    numberOfDipoles = get(dd_numberOfDipoles, 'Value'); % update 'numberOfDipoles'
+    
+    set(Crosshair, 'Visible', 'off'); % disable all dipole crosshairs
+    set(Crosshair(:,1:numberOfDipoles), 'Visible', 'on'); % enable dipole crosshairs '1:numberOfDipoles'
+    
+    set(e_dipolePosition, 'Enable', 'off'); % disable all dipole position edits
+    %set(e_dipoleMoment, 'Enable', 'off'); % disable all dipole moment edits
+    set(dd_signal, 'Enable', 'off'); % disable all signal pop up menues
+    
+    set(e_dipolePosition(1:numberOfDipoles,:), 'Enable', 'on'); % enable dipole position edits '1:numberOfDipoles'
+    %set(e_dipoleMoment(1:numberOfDipoles,:), 'Enable', 'on'); % enable dipole moment edits '1:numberOfDipoles'
+    set(dd_signal(1:numberOfDipoles), 'Enable', 'on'); % enable signal pop up menues '1:numberOfDipoles'
+    
+    % dirty workaround for the dropdown to get rid of the focus to prevent
+    % the value to be adjusted when pressing number keys to locate dipoles.
+    set(dd_numberOfDipoles, 'Enable', 'off');
+    drawnow;
+    set(dd_numberOfDipoles, 'Enable', 'on');
+    
+    showWarningExport('on')
+end
+
+function setNumberOfMovingDipoles(hObject,eventdata)
+% callback function which is called on choosing a number of moving dipoles
+% from the pop up menu 'Number Of Moving Dipoles'
+
+    numberOfMovingDipoles = (get(dd_numberOfMovingDipoles, 'Value'));
+
+    set(movingCrosshair, 'Visible', 'off'); % disable all dipole crosshairs
+    set(movingCrosshair(:,1:numberOfMovingDipoles-1), 'Visible', 'on'); % enable dipole crosshairs '1:numberOfDipoles'
+
+    % Disable all edit fields
+    set(e_movingdipolePosition, 'Enable', 'off');
+    %set(e_movingdipoleMoment, 'Enable', 'off');
+
+    if (numberOfMovingDipoles ~= 1)
+    % Enable the position and moment edit fields for the choosen number of
+    % moving dipoles
+        set(e_movingdipolePosition(1:numberOfMovingDipoles-1,:), 'Enable', 'on');
+    end
+
+    % dirty workaround for the dropdown to get rid of the focus to prevent
+    % the value to be adjusted when pressing number keys to locate dipoles.
+    set(dd_numberOfMovingDipoles, 'Enable', 'off');
+    drawnow;
+    set(dd_numberOfMovingDipoles, 'Enable', 'on');
+
+    % enable warning that potential map (and electrode signals) is (are) not up to date
+    for i=1:numberOfDipoles
+        signalSetup(i,1)=get(dd_signal(i), 'Value');
+    end
+end
+
+function additiveNoise(hObject,eventdata)
+    % callback function executed when the selected radio button changes
+    % enables the warning, that electrode signals are not up to date, if
+    % electrode signals have been calulcated previously
+    if ~isempty(electrodeSignals)
+         showWarningExport('on');
+    end
+end
+
+function addSNRnoise (hObject,eventdata)
+        % callback function executed when the edit field to select the SNR
+        % is changed
+        SNRnoise = str2double(get(e_SNRnoise,'String'));
+end
+
+function loadElectrodeSetup()
+        
+    % display electrode positions in 3D view an make it visible
+    set(pl_elecSetup, ...
+    'XData', t_ForwardSolution.eeg_loc_norm(1,:)', ...
+    'YData', (t_ForwardSolution.eeg_loc_norm(2,:)'), ...
+    'ZData', t_ForwardSolution.eeg_loc_norm(3,:)');
+end    
+
+function showElectrodeSetup(hObject,eventdata)
+     % callback function of the radio button group to show the electrode
+     % setup
+     if strcmp(get(get(rbg_showElectrodeSetup, 'SelectedObject'),'String'),'Yes') 
+       % display electrode positions in 3D view an make it visible
+       set(pl_elecSetup,'Visible','on');  
+     else
+       set(pl_elecSetup,'Visible','off');  
+     end
+end
+
+function refreshCrosshairs(hObject, eventdata)
+    % callback function which is called on leaving a dipole position edit
+    % field
+    
+    component = get(hObject, 'UserData'); % get the component (x, y, z) which is stored (as 1, 2, 3) in the UserData field of the calling edit field
+    checkDipolePositionComponent(hObject, component); % check whether the value is valid
+    
+    % adjust crosshair position
+    set(Crosshair(1,component(1)), ...
+        'XData', dipolePosition(component(1),1), ...
+        'YData', dipolePosition(component(1),3));
+    
+    set(Crosshair(2,component(1)), ...
+        'XData', dipolePosition(component(1),2), ...
+        'YData', dipolePosition(component(1),1));
+    
+    set(Crosshair(3,component(1)), ...
+        'XData', dipolePosition(component(1),2), ...
+        'YData', dipolePosition(component(1),3));   
+end
+
+function refreshMovingCrosshairs(hObject, eventdata)
+    % callback function which is called on leaving a moving dipole position
+    % edit field
+    component = get(hObject, 'UserData'); % get the component (x, y, z) which is stored (as 1, 2, 3) in the UserData field of the calling edit field
+    checkMovingDipolePositionComponent(hObject, component); % check whether the value is valid
+    
+    % adjust crosshair position
+    set(movingCrosshair(1,component(1)), ...
+        'XData', movingdipolePosition(component(1),1), ...
+        'YData', movingdipolePosition(component(1),3));
+    
+    set(movingCrosshair(2,component(1)), ...
+        'XData', movingdipolePosition(component(1),2), ...
+        'YData', movingdipolePosition(component(1),1));
+    
+    set(movingCrosshair(3,component(1)), ...
+        'XData', movingdipolePosition(component(1),2), ...
+        'YData', movingdipolePosition(component(1),3));
+end
+
+function change3DView(hObject, eventdata)
+    % callback function which is called on a view control button. Nothing
+    % more to comment here. Easy to understand.
+    if (hObject == pb_rightView)
+        set(a_3Dview, 'View', [-90 0]);
+    elseif (hObject == pb_leftView)
+        set(a_3Dview, 'View', [90 0]);
+    elseif (hObject == pb_topView)
+        set(a_3Dview, 'View', [-90 90]);
+    elseif (hObject == pb_bottomView)
+        set(a_3Dview, 'View', [90 -90]);
+    elseif (hObject == pb_frontView)
+        set(a_3Dview, 'View', [180 0]);
+    elseif (hObject == pb_backView)
+        set(a_3Dview, 'View', [0 0]);
+    elseif (hObject == pb_defaultView)
+        set(a_3Dview, 'View', [37.5 30]);
+    end
+end
+
+function showActivationCourse(hObject,eventdata)
+    % callback function which is called on the potential course button.
+    % Shows the potential course if moving dipoles are selected
+   
+    % show the activated sources for each moving dipole position
+    for i=2:size(Idcs_mov,1)
+        if ~isempty(findobj(a_3Dview,'Type','line','Color','r'))
+        delete(findobj(a_3Dview,'Type','line','Color','r'));
+        end
+        t_ForwardSolution.plot_DSPos('ac_Srcs',Idcs_mov{i,1},'dim',4,'axesHandle',a_3Dview);
+        %drawnow
+    end
+end
+
+function checkDipolePositionComponent(hObject, component)
+% check content of edit field with handle hObject for to be a valid single 
+% dipole position component
+    
+    pos = str2num(get(hObject, 'String')); % get the content of the edit field
+    
+    if(numel(pos) ~=1)
+    % if it is not a vector or matrix
+        if(isempty(get(hObject, 'String')))
+        % if it is empty
+            set(hObject, 'String', '0'); % set the edit field...
+            dipolePosition(component(1), component(2)) = 0; % ...and the 'dipolePosition' element to zero
+            showWarningExport('on')
+        else
+            set(hObject, 'String', num2str(dipolePosition(component(1), component(2))));
+        end
+        return;
+    end
+    
+    if(~isreal(pos) || ~isnumeric(pos))
+    % if it is not a real number...
+        set(hObject, 'String', num2str(dipolePosition(component(1), component(2)))); % set the edit field to the last valid value
+        return;
+    end
+    
+    % Otherwise, if the entry is correct, adjust 'dipolePosition' component
+    dipolePosition(component(1), component(2)) = pos;
+    showWarningExport('on')
+end
+
+function checkMovingDipolePositionComponent(hObject, component)
+% check content of edit field with handle hObject for to be a valid single 
+% dipole position component
+    
+    pos = str2num(get(hObject, 'String')); % get the content of the edit field
+    
+    if(numel(pos) ~=1)
+    % if it is not a vector or matrix
+        if(isempty(get(hObject, 'String')))
+        % if it is empty
+            set(hObject, 'String', '0'); % set the edit field...
+            movingdipolePosition(component(1), component(2)) = 0; % ...and the 'dipolePosition' element to zero
+            showWarningExport('on')
+        else
+            set(hObject, 'String', num2str(movingdipolePosition(component(1), component(2))));
+        end
+        return;
+    end
+    
+    if(~isreal(pos) || ~isnumeric(pos))
+    % if it is not a real number...
+        set(hObject, 'String', num2str(movingdipolePosition(component(1), component(2)))); % set the edit field to the last valid value
+        return;
+  end
+    
+    % Otherwise, if the entry is correct, adjust 'dipolePosition' component
+    movingdipolePosition(component(1), component(2)) = pos;
+
+    showWarningExport('on')
+end
+        
+function validStartEndPos = checkStartEndPos()
+% check if start and end position of the moving dipoles are different, if
+% not display warning
+
+    validStartEndPos =1; % assume that the start and end positions are different for all moving dipoles
+    for i=1:numberOfMovingDipoles-1
+        if (dipolePosition(i,:)-movingdipolePosition(i,:))==zeros(1,3);
+            validStartEndPos =0; 
+        end
+    end
+end 
+  
+function refreshAxesLimits()
+% refreshAxesLimits() adjusts the axes limits of all sourceloc axes as well
+% as the 3D view axes such that the volume conduction model fits in them.
+    axlimit = 1.1;
+    for i=1:3
+        set(a_sourceloc(i), ...
+            'XLim', [-axlimit axlimit], ...
+            'YLim', [-axlimit axlimit]);
+    end
+    set(a_3Dview, ...
+        'XLim', [-axlimit axlimit], ...
+        'YLim', [-axlimit axlimit], ...
+        'ZLim', [-axlimit axlimit]);
+end
+
+function showWarningExport(status)
+% showWarningExport(status) enables the warning text that the electrode 
+% signals are not up to date if status = 'on' and disables the warning if
+% status = 'off'
+
+    if(strcmp(status, 'on'))
+        set(pb_exportElecDataToWorkspace, 'Enable', 'off'); 
+        set(t_pmNotUp2Date,'Visible','on');
+        set(e_outputVarName,'Enable','off');
+        set(pb_showElectrodeSignals, 'Enable', 'off');
+        set(pb_showEEGDecompositionPanel,'Enable', 'off');
+    else
+        set(pb_exportElecDataToWorkspace, 'Enable', 'on');
+        set(t_pmNotUp2Date,'Visible','off');
+        set(e_outputVarName,'Enable','on');
+        set(pb_showElectrodeSignals, 'Enable', 'on');
+        set(pb_showEEGDecompositionPanel,'Enable', 'on');
+    end    
+end
+
+function exportElecDataToWorkspace(hObject, eventdata)
+% callback function of "Export Electrode Data to Workspace" button. Creates
+% a struct in the MATLAB 'base' workspace containing many data about the
+% current electrode data and head model.
+
+    outputVarName = get(e_outputVarName, 'String'); % get name of output variable
+    
+    % check whether the variable name is valid, ...
+    if ~isvarname(outputVarName)
+        errordlg(errInvOutputVarName) % ...otherwise show an error message...
+        return; % ...and return
+    end
+    
+    % create a temporary output struct containing...
+        tempout.ForwardSolution = t_ForwardSolution; % Forward solution of the realistic head model
+        tempout.dipolePositions = dipolePosition(1:numberOfDipoles,:); % ...dipole positions, ...
+        tempout.DipoleSignals=signal; % signal matrix containing the dipole signals, ...
+        tempout.ElectrodeSignals=electrodeSignals; % ...electrode signals, ...
+    
+    % if moving dipoles are selected
+    if numberOfMovingDipoles ~= 0
+        tempout.movingdipoleEndPositions= movingdipolePosition(1:numberOfMovingDipoles,:); % end positions of moving dipoles
+        tempout.dipoleTrace=dipolePositionMov; % matrix with the dipole positions during the moving
+    else
+    end
+    
+    % assign this struct in MATLAB 'base' workspace
+    assignin('base', outputVarName, tempout);
+end
+
+function showEEGDecompositionPanel(hObject,eventdata)
+% callback function that opens the EEG decomposition panel
+if ishandle(f_decomp)&& (f_decomp ~=0) 
+    close(f_decomp)
+end
+
+% create filename
+ES='';
+sig=repmat({''},1,numberOfDipoles);
+    for i=1:numberOfDipoles
+        
+        sv=get(dd_signal(i),'Value');
+    
+        if       sv==2; sig(i)=cellstr('alpha-band'); 
+        elseif   sv==3; sig(i)=cellstr('beta-band');
+        elseif   sv==4; sig(i)=cellstr('ts-alpha-band');
+        elseif   sv==5; sig(i)=cellstr('ts-beta-band');
+        elseif   sv==6; sig(i)=cellstr('gamma-band sinus wave');    
+        elseif   sv==7; sig(i)=cellstr('EP');
+        elseif   sv==8; sig(i)=cellstr('sleepspindles');
+        elseif   sv==9; sig(i)=cellstr('wave');
+        elseif   sv==10; sig(i)=cellstr('spike');
+        elseif   sv==11; sig(i)=cellstr('spikewave');
+        elseif   sv==12; sig(i)=cellstr('eyeblink');
+        elseif   sv==13; sig(i)=cellstr('polyspikes');  
+        elseif   sv==14; sig(i)=cellstr('rect');      
+        elseif   sv==15; sig(i)=cellstr('paraboloid');
+        elseif   sv==16; sig(i)=cellstr('triangle');    
+        elseif   sv==17; sig(i)=cellstr('singauss');
+        elseif   sv==18; sig(i)=cellstr('gauss');
+        elseif   sv==19; sig(i)=cellstr('ts-spike');
+        
+        end
+     end
+    
+    if (numberOfDipoles-numberOfMovingDipoles) == 0 % if no static dipoles are selected
+        f_nD='';
+    else
+        f_nD=[int2str(numberOfDipoles-numberOfMovingDipoles),'D'];
+    end
+    if numberOfMovingDipoles==0 % if no moving dipoles are selected
+        f_nMD='';
+    else
+        f_nMD=[int2str(numberOfMovingDipoles),'MD'];
+    end
+    if strcmp(get(get(rbg_additiveNoise, 'SelectedObject'),'String'),'White Noise') % if noise is added to electrode signals
+     noise='_WN';   
+    else
+        noise='_bEEG';
+    end
+    if size(sig,2)==1
+        elecSig_FileName=sprintf('SyntheticEEG_%s%s%s_%s%s',ES,f_nD,f_nMD,sig{1},noise);
+    elseif size(sig,2)==2
+        elecSig_FileName=sprintf('SyntheticEEG_%s%s%s_%s_%s%s',ES,f_nD,f_nMD,sig{1},sig{2},noise);
+    end
+    
+    % create a temporary output struct containing...
+        ElecSig.ForwardSolution = t_ForwardSolution; % Forward solution of the realistic head model
+        ElecSig.dipolePositions = dipolePosition(1:numberOfDipoles,:); % ...dipole positions, ...
+        ElecSig.DipoleSignals=signal; % signal matrix containing the dipole signals, ...
+        ElecSig.ElectrodeSignals=electrodeSignals; % ...electrode signals, ...
+    
+    % if moving dipoles are selected
+    if numberOfMovingDipoles ~= 0
+        ElecSig.movingdipoleEndPositions= movingdipolePosition(1:numberOfMovingDipoles,:); % end positions of moving dipoles
+        ElecSig.dipoleTrace=dipolePositionMov; % matrix with the dipole positions during the moving
+    end
+    
+    % save data to file    
+    save([WorkingFolder,elecSig_FileName,'.mat'],'ElecSig');
+    
+    % open EEG decomposition panel
+    f_decomp = EEGdecomposition(elecSig_FileName);
+    guidata(hObject,f_decomp);
+end
+
+end
+
+

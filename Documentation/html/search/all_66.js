@@ -1,0 +1,12 @@
+var searchData=
+[
+  ['first',['first',['../classsl___c_correlated_dipole_map.html#afbe58b8ae1dfa6ad9895d787da2f079f',1,'sl_CCorrelatedDipoleMap::first()'],['../classsl___c_pair.html#afbe58b8ae1dfa6ad9895d787da2f079f',1,'sl_CPair::first()'],['../classsl___c_correlated_dipole_map.html#afa19f27c9a2aa47a62198517cf74164f',1,'sl_CCorrelatedDipoleMap::first(in obj)'],['../classsl___c_correlated_dipole_map.html#af1af88eca032252a208ece1df4f96c41',1,'sl_CCorrelatedDipoleMap::first(in obj, in p_value)'],['../classsl___c_list.html#ac4e1508027cfdddbb26b99d2d11e86d0',1,'sl_CList::first()'],['../classsl___c_pair.html#afa19f27c9a2aa47a62198517cf74164f',1,'sl_CPair::first(in obj)'],['../classsl___c_pair.html#af1af88eca032252a208ece1df4f96c41',1,'sl_CPair::first(in obj, in p_value)']]],
+  ['forward',['Forward',['../classsl___type.html#a43e39bb9ca1f4abb52c46f058c7a6a1aae204c9c3e62b1e9a6b60e40cd05256c5',1,'sl_Type']]],
+  ['forwardeeg',['forwardEEG',['../forward_e_e_g_8m.html#ad74183fc7b0965b892b47126d32168aa',1,'forwardEEG.m']]],
+  ['forwardeeg_2em',['forwardEEG.m',['../forward_e_e_g_8m.html',1,'']]],
+  ['forwardeeg_5fr',['forwardEEG_r',['../forward_e_e_g__r_8m.html#a22152246b1cdb4973b9b4277b64b85ba',1,'forwardEEG_r.m']]],
+  ['forwardeeg_5fr_2em',['forwardEEG_r.m',['../forward_e_e_g__r_8m.html',1,'']]],
+  ['forwardsolution',['ForwardSolution',['../classsl___type.html#a43e39bb9ca1f4abb52c46f058c7a6a1aac4559ba482500c9aa5016b476ff5203e',1,'sl_Type']]],
+  ['forwardsolutionavailable',['ForwardSolutionAvailable',['../classsl___c_forward_solution.html#aa96a52c73de9357f50d3c9e74ead10ef',1,'sl_CForwardSolution::ForwardSolutionAvailable()'],['../classsl___c_forward_solution.html#a3772e3af3db9520322b36c87574cbd49',1,'sl_CForwardSolution::ForwardSolutionAvailable(in obj)']]],
+  ['fsamplingfrequency',['fSamplingFrequency',['../classsl___c_measurement.html#a2f9daba62aa738ee755a9dabe55e3233',1,'sl_CMeasurement::fSamplingFrequency()'],['../classsl___i_time_series.html#a2f9daba62aa738ee755a9dabe55e3233',1,'sl_ITimeSeries::fSamplingFrequency()'],['../classsl___c_measurement.html#a1587dbce470531fd883033875a884d57',1,'sl_CMeasurement::fSamplingFrequency(in obj)'],['../classsl___c_measurement.html#a3562a8282ea6026c1554267ab9e54ce4',1,'sl_CMeasurement::fSamplingFrequency(in obj, in value)'],['../classsl___i_time_series.html#a1587dbce470531fd883033875a884d57',1,'sl_ITimeSeries::fSamplingFrequency(in obj)'],['../classsl___i_time_series.html#afcaa065f7c33a84a1a9e9164880a1988',1,'sl_ITimeSeries::fSamplingFrequency(in obj, in p_fSamplingFrequency)']]]
+];

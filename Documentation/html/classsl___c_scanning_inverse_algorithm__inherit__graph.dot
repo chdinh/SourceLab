@@ -1,0 +1,24 @@
+digraph G
+{
+  edge [fontname="FreeSans",fontsize="10",labelfontname="FreeSans",labelfontsize="10"];
+  node [fontname="FreeSans",fontsize="10",shape=record];
+  Node1 [label="sl_CScanningInverseAlgorithm",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled" fontcolor="black"];
+  Node2 -> Node1 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="FreeSans"];
+  Node2 [label="sl_IInverseAlgorithm",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classsl___i_inverse_algorithm.html",tooltip="ToDo Summary of this class."];
+  Node3 -> Node2 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="FreeSans"];
+  Node3 [label="sl_IAlgorithm",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classsl___i_algorithm.html",tooltip="ToDo Summary of this class."];
+  Node4 -> Node3 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="FreeSans"];
+  Node4 [label="sl_IModel",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classsl___i_model.html",tooltip="ToDo Summary of this class."];
+  Node5 -> Node4 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="FreeSans"];
+  Node5 [label="handle",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classhandle.html"];
+  Node1 -> Node6 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="FreeSans"];
+  Node6 [label="sl_CDCBF",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classsl___c_d_c_b_f.html",tooltip="This class holds the functions of the DCBF."];
+  Node6 -> Node7 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="FreeSans"];
+  Node7 [label="sl_CeDCBF",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classsl___ce_d_c_b_f.html",tooltip="This class holds the functions of the eDCBF."];
+  Node6 -> Node8 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="FreeSans"];
+  Node8 [label="sl_CeDCBF_regularized",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classsl___ce_d_c_b_f__regularized.html",tooltip="File used to show an example of class description."];
+  Node1 -> Node9 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="FreeSans"];
+  Node9 [label="sl_CRapMusic",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classsl___c_rap_music.html",tooltip="Summary of this class goes here."];
+  Node9 -> Node10 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="FreeSans"];
+  Node10 [label="sl_CRapMusicPwl",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classsl___c_rap_music_pwl.html",tooltip="Summary of this class goes here."];
+}

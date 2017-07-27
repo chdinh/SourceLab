@@ -1,0 +1,21 @@
+var searchData=
+[
+  ['generatesignals',['generateSignals',['../classsl___c_e_e_g_simulator_g_u_i.html#a0e237df8b94dfd2302dfc4c1536addf3',1,'sl_CEEGSimulatorGUI::generateSignals()'],['../_scripts_2_m_a___judith_2_forward_e_e_g___g_u_i_2forward_e_e_g_2_forward_e_e_gsubfunctions_2generate_signals_8m.html#a0e237df8b94dfd2302dfc4c1536addf3',1,'generateSignals():&#160;generateSignals.m']]],
+  ['get',['get',['../classsl___c3_d_vector.html#a5fd70a22cdbf1ed7a583046bf5827a85',1,'sl_C3DVector']]],
+  ['get_5fprocessing_5fdata',['get_processing_data',['../classsl___c_e_e_g_simulator_g_u_i.html#acba980efe94b76d3f3539a2571bf931c',1,'sl_CEEGSimulatorGUI::get_processing_data()'],['../classsl___c_e_e_g_simulator_g_u_i.html#acba980efe94b76d3f3539a2571bf931c',1,'sl_CEEGSimulatorGUI::get_processing_data()'],['../_scripts_2_m_a___judith_2_forward_e_e_g___g_u_i_2forward_e_e_g_2_forward_e_e_gsubfunctions_2show__eeg__data_8m.html#acba980efe94b76d3f3539a2571bf931c',1,'get_processing_data():&#160;show_eeg_data.m'],['../_scripts_2_m_a___judith_2_forward_e_e_g___g_u_i_2forward_e_e_g_2_forward_e_e_gsubfunctions_2show__electrode__signals_8m.html#acba980efe94b76d3f3539a2571bf931c',1,'get_processing_data():&#160;show_electrode_signals.m']]],
+  ['getbestz_5fscores',['getBestZ_Scores',['../classsl___c_d_c_b_f.html#aff88d7fecbb03e90cf9a99a1cf513420',1,'sl_CDCBF']]],
+  ['getcoordinate',['getCoordinate',['../classsl___c_forward_solution.html#a5557276f30720ddc90afd66415a503ea',1,'sl_CForwardSolution']]],
+  ['getdistance',['getDistance',['../classsl___c_d_c_b_f___tools.html#ab73c6712b2d3ff4198861e34b775a57a',1,'sl_CDCBF_Tools']]],
+  ['getleadfield',['getLeadField',['../classsl___c_d_c_b_f.html#aa99719915686bfb9aa868fe2c8eaeb6c',1,'sl_CDCBF']]],
+  ['getleadfieldpair',['getLeadFieldPair',['../classsl___c_d_c_b_f.html#ad3906f90e7713cea27c3ea4a6875edb8',1,'sl_CDCBF::getLeadFieldPair()'],['../classsl___c_rap_music.html#ad3906f90e7713cea27c3ea4a6875edb8',1,'sl_CRapMusic::getLeadFieldPair()']]],
+  ['getoffset',['getOffset',['../classsl___c_d_c_b_f___tools.html#a93c674fc37130bec764eb2d578ccebb5',1,'sl_CDCBF_Tools']]],
+  ['getpathidcs',['getPathIdcs',['../classsl___c_forward_solution.html#aad6a4af693773ce42e3edf120b64e900',1,'sl_CForwardSolution']]],
+  ['getpathidcs_5f2',['getPathIdcs_2',['../classsl___c_forward_solution.html#a6b23657634f1587b4a665dabfc4e9c2c',1,'sl_CForwardSolution']]],
+  ['getpointpair',['getPointPair',['../classsl___c_d_c_b_f.html#adcbcbccb158a85b422e5a764345e6bb4',1,'sl_CDCBF::getPointPair()'],['../classsl___c_rap_music.html#adcbcbccb158a85b422e5a764345e6bb4',1,'sl_CRapMusic::getPointPair()']]],
+  ['getposidx',['getPosIdx',['../classsl___c_forward_solution.html#a6cdd6cf495e671f52a6395418acc1728',1,'sl_CForwardSolution']]],
+  ['getradialsources',['getRadialSources',['../classsl___c_forward_solution.html#a6c2f6a5c3e6a11d2b95029e931acf226',1,'sl_CForwardSolution']]],
+  ['getroisources',['getROISources',['../classsl___c_forward_solution.html#a9ecc673d5d5392260d945167e2ca9264',1,'sl_CForwardSolution']]],
+  ['getsig',['getSig',['../classsl___c_d_c_b_f.html#a5afd31a6edd4f0dc4c839b832acc1a43',1,'sl_CDCBF']]],
+  ['gettangentialsources',['getTangentialSources',['../classsl___c_forward_solution.html#ab898232f8a367852ab35d50c68f9f981',1,'sl_CForwardSolution']]],
+  ['grad',['grad',['../classsl___c_measurement.html#a9cccc7d9b852f6b5fabced1044b640e4',1,'sl_CMeasurement']]]
+];

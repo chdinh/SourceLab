@@ -1,0 +1,16 @@
+digraph G
+{
+  edge [fontname="FreeSans",fontsize="10",labelfontname="FreeSans",labelfontsize="10"];
+  node [fontname="FreeSans",fontsize="10",shape=record];
+  Node1 [label="sl_CTSVD",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled" fontcolor="black"];
+  Node2 -> Node1 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="FreeSans"];
+  Node2 [label="sl_CImagingInverseAlgorithm",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classsl___c_imaging_inverse_algorithm.html",tooltip="ToDo Summary of this class."];
+  Node3 -> Node2 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="FreeSans"];
+  Node3 [label="sl_IInverseAlgorithm",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classsl___i_inverse_algorithm.html",tooltip="ToDo Summary of this class."];
+  Node4 -> Node3 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="FreeSans"];
+  Node4 [label="sl_IAlgorithm",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classsl___i_algorithm.html",tooltip="ToDo Summary of this class."];
+  Node5 -> Node4 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="FreeSans"];
+  Node5 [label="sl_IModel",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classsl___i_model.html",tooltip="ToDo Summary of this class."];
+  Node6 -> Node5 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="FreeSans"];
+  Node6 [label="handle",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classhandle.html"];
+}

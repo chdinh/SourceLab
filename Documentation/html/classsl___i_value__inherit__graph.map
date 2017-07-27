@@ -1,0 +1,22 @@
+<map id="G" name="G">
+<area shape="rect" id="node7" href="$classsl___c_correlated_dipole_map.html" title="sl_CCorrelatedDipoleMap" alt="" coords="363,5,528,32"/>
+<area shape="rect" id="node9" href="$classsl___c_list.html" title="The sl_CList class provides lists." alt="" coords="413,56,478,83"/>
+<area shape="rect" id="node11" href="$classsl___c_map.html" title="sl_CMap" alt="" coords="410,107,481,133"/>
+<area shape="rect" id="node15" href="$classsl___c_measurement.html" title="Summary of this class goes here." alt="" coords="383,157,507,184"/>
+<area shape="rect" id="node19" href="$classsl___c_pair.html" title="Stores a pair of items." alt="" coords="411,208,479,235"/>
+<area shape="rect" id="node21" href="$classsl___c_source_space.html" title="Summary of this class goes here." alt="" coords="385,259,506,285"/>
+<area shape="rect" id="node31" href="$classsl___i_time_series.html" title="sl_ITimeSeries" alt="" coords="392,309,499,336"/>
+<area shape="rect" id="node2" href="$classsl___i_model.html" title="sl_IModel" alt="" coords="115,157,191,184"/>
+<area shape="rect" id="node4" href="$classhandle.html" title="handle" alt="" coords="6,157,66,184"/>
+<area shape="rect" id="node13" href="$classsl___c_dipole_map.html" title="sl_CDipoleMap" alt="" coords="577,107,682,133"/>
+<area shape="rect" id="node17" href="$classsl___c_simulator.html" title="ToDo Summary of this class." alt="" coords="579,157,680,184"/>
+<area shape="rect" id="node23" href="$classsl___c_r_o_i_space.html" title="Summary of this class goes here." alt="" coords="578,259,681,285"/>
+<area shape="rect" id="node25" href="$classsl___c_forward_solution.html" title="ToDo Summary of this class." alt="" coords="762,208,902,235"/>
+<area shape="rect" id="node27" href="$classsl___c_inverse_solution.html" title="Summary of this class goes here." alt="" coords="765,259,899,285"/>
+<area shape="rect" id="node29" href="$classsl___c_probabilistic_inverse_solution.html" title="ToDo Summary of this class." alt="" coords="731,309,933,336"/>
+<area shape="rect" id="node33" href="$classsl___c3_d_grid.html" title="sl_C3DGrid" alt="" coords="587,309,671,336"/>
+<area shape="rect" id="node35" href="$classsl___c3_d_vector.html" title="sl_C3DVector" alt="" coords="580,360,679,387"/>
+<area shape="rect" id="node37" href="$classsl___c3_d_orientation.html" title="sl_C3DOrientation" alt="" coords="770,360,894,387"/>
+<area shape="rect" id="node41" href="$classsl___c3_d_point.html" title="Summary of this class goes here." alt="" coords="787,411,877,437"/>
+<area shape="rect" id="node39" href="$classsl___c_dipole.html" title="sl_CDipole" alt="" coords="982,360,1063,387"/>
+</map>
